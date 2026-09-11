@@ -6,9 +6,15 @@ maid_trash() {
   [ $# -eq 0 ] && { echo "maid trash: specify file(s)" >&2; return 1; }
   mkdir -p "$MAID_TRASH"
   for f in "$@"; do
-    [ -e "$f" ] || { printf "maid trash: not found: %s
+    # -e follows symlinks; also accept a symlink whose target is already
+    # gone (dangling), so a broken link can still be trashed.
+    [ -e "$f" ] || [ -L "$f" ] || { printf "maid trash: not found: %s
 " "$f" >&2; continue; }
-    orig="$(realpath "$f")"
+    # realpath -s: absolute path of the ARGUMENT itself, WITHOUT resolving
+    # symlinks. Plain realpath would return the symlink TARGET's path, and
+    # the subsequent mv would then move the target and leave a dangling
+    # symlink behind -- the opposite of what "trash this symlink" means.
+    orig="$(realpath -s "$f")"
     name="$(basename "$f")"
     dest="$MAID_TRASH/$name"
     n=1
